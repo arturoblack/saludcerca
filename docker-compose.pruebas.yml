@@ -1,0 +1,42 @@
+# OPCIONAL — pruebas locales de inicio de sesión y de SMS/correos. No se usa en Azure ni en el CI/CD.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.pruebas.yml up --build
+#   (se puede combinar con floci: -f docker-compose.yml -f docker-compose.floci.yml -f docker-compose.pruebas.yml)
+#
+#   App:                     http://localhost:8080   -> "Ingresar" lleva al proveedor de identidad de prueba
+#   Proveedor OIDC de prueba: http://localhost:8090   (escriba como username: pac-rosa, pac-juan, med-luis, admin-ong…)
+#   Bandeja de SMS y correos: http://localhost:8025   (Mailpit: cada SMS llega como "SMS para +51…")
+services:
+  oidc:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    ports: ["8090:8080"]
+    environment:
+      JSON_CONFIG: '{"interactiveLogin": true, "httpServer": "NettyWrapper"}'
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # interfaz web
+      - "1025:1025"   # SMTP
+    restart: unless-stopped
+
+  web:
+    build:
+      args:
+        VITE_AUTH_MODE: oidc
+        VITE_OIDC_AUTHORITY: http://localhost:8090/default
+        VITE_OIDC_TOKEN_URL: /oidc/default/token   # mismo origen, vía nginx (evita CORS)
+        VITE_OIDC_CLIENT_ID: saludcerca-web
+    depends_on: [api, oidc]
+
+  api:
+    depends_on: [oidc, mailpit]
+    environment:
+      AUTH_MODE: oidc
+      OIDC_ISSUER: http://localhost:8090/default     # el emisor que ve el navegador
+      OIDC_JWKS_URL: http://oidc:8080/default/jwks   # la API descarga las claves por la red interna
+      OIDC_AUDIENCE: ""                              # el proveedor de prueba no fija audiencia
+      NOTIFIER_BACKEND: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"

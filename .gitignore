@@ -1,0 +1,13 @@
+node_modules/
+dist/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+local.settings.json
+.env
+infra/.terraform/
+infra/*.tfstate*
+infra/tfplan
+infra/backend.hcl
+infra/terraform.tfvars

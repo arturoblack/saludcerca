@@ -1,0 +1,13 @@
+# Producción (Azure Functions, Python 3.11)
+azure-functions>=1.21
+starlette>=0.40
+pydantic>=2.7
+PyJWT[crypto]>=2.8
+cryptography>=42
+azure-identity>=1.17
+azure-cosmos>=4.7
+azure-servicebus>=7.12
+azure-storage-blob>=12.20
+azure-communication-identity>=1.5
+azure-communication-sms>=1.1
+azure-communication-email>=1.0

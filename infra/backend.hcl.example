@@ -1,0 +1,6 @@
+# Cuenta de Storage creada una sola vez para guardar el estado de Terraform.
+resource_group_name  = "rg-saludcerca-tfstate"
+storage_account_name = "sttfstatesaludcerca"
+container_name       = "tfstate"
+key                  = "saludcerca-dev.tfstate"
+use_azuread_auth     = true

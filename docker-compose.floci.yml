@@ -1,0 +1,33 @@
+# Sobrescribe la API para usar servicios emulados con floci-az (https://floci.io/floci-az/).
+# Uso: docker compose -f docker-compose.yml -f docker-compose.floci.yml up --build
+services:
+  floci-az:
+    image: floci/floci-az:latest
+    ports:
+      - "4577:4577"   # API HTTP (Blob, Cosmos DB, gestión)
+      - "5673:5673"   # Service Bus (AMQP)
+    environment:
+      FLOCI_AZ_HOSTNAME: floci-az
+      FLOCI_AZ_BASE_URL: http://floci-az:4577
+      FLOCI_AZ_SERVICES_SERVICE_BUS_ENABLED: "true"
+      FLOCI_AZ_SERVICES_SERVICE_BUS_MOCKED: "false"      # levanta el broker AMQP real (Artemis)
+      FLOCI_AZ_SERVICES_SERVICE_BUS_START_ON_BOOT: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock       # floci-az crea el contenedor de Artemis
+    restart: unless-stopped
+
+  api:
+    depends_on: [floci-az]
+    environment:
+      AUTH_MODE: dev
+      STORAGE_BACKEND: cosmos
+      COSMOS_ENDPOINT: http://floci-az:4577/devstoreaccount1-cosmos
+      # Clave pública conocida del emulador (no es un secreto; floci-az acepta cualquiera)
+      COSMOS_KEY: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==
+      COSMOS_AUTO_CREATE: "true"
+      BLOB_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://floci-az:4577/devstoreaccount1;
+      MESSAGING_BACKEND: servicebus
+      SERVICEBUS_CONNECTION_STRING: Endpoint=sb://floci-az:5673;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=devkey;UseDevelopmentEmulator=true
+      SERVICEBUS_QUEUE: notificaciones
+      LOCAL_SB_WORKER: "true"       # dev_server.py hace de fn-notificador leyendo la cola
+      NOTIFIER_BACKEND: console

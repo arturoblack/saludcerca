@@ -1,0 +1,27 @@
+# Demo local con contenedores.
+#
+#   docker compose up --build
+#       web (React compilado + nginx)  -> http://localhost:8080
+#       api (Python, datos en memoria) -> http://localhost:8000/api/health
+#
+#   docker compose -f docker-compose.yml -f docker-compose.floci.yml up --build
+#       igual, pero Cosmos DB, Blob Storage y Service Bus emulados con floci-az
+services:
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_AUTH_MODE: dev
+    ports: ["8080:8080"]
+    depends_on: [api]
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    ports: ["8000:8000"]
+    environment:
+      AUTH_MODE: dev
+      STORAGE_BACKEND: memory
+      MESSAGING_BACKEND: inline
+      NOTIFIER_BACKEND: console
+    restart: unless-stopped

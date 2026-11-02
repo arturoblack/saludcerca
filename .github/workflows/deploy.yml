@@ -1,0 +1,127 @@
+name: Despliegue a Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# OIDC: GitHub obtiene un token de corta duración; no hay contraseñas de Azure guardadas en el repositorio.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: "true"
+  TF_VAR_entra_tenant_subdomain: ${{ vars.ENTRA_TENANT_SUBDOMAIN }}
+  TF_VAR_entra_tenant_id: ${{ vars.ENTRA_TENANT_ID }}
+  TF_VAR_entra_api_client_id: ${{ vars.ENTRA_API_CLIENT_ID }}
+  TF_VAR_integration_keys_sha256: ${{ secrets.INTEGRATION_KEYS_SHA256 }}
+
+jobs:
+  plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init -backend-config="resource_group_name=${{ vars.TFSTATE_RG }}" -backend-config="storage_account_name=${{ vars.TFSTATE_ACCOUNT }}" -backend-config="container_name=tfstate" -backend-config="key=saludcerca-${{ vars.ENTORNO }}.tfstate" -backend-config="use_azuread_auth=true" -backend-config="use_oidc=true"
+      - run: terraform plan -input=false -var="entorno=${{ vars.ENTORNO }}" -out=tfplan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: infra/tfplan
+
+  apply:
+    name: Terraform apply (requiere aprobación)
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: produccion # regla de protección: aprobación manual de un revisor
+    defaults:
+      run:
+        working-directory: infra
+    outputs:
+      function_app: ${{ steps.out.outputs.function_app }}
+      api_url: ${{ steps.out.outputs.api_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: infra
+      - run: terraform init -backend-config="resource_group_name=${{ vars.TFSTATE_RG }}" -backend-config="storage_account_name=${{ vars.TFSTATE_ACCOUNT }}" -backend-config="container_name=tfstate" -backend-config="key=saludcerca-${{ vars.ENTORNO }}.tfstate" -backend-config="use_azuread_auth=true" -backend-config="use_oidc=true"
+      - run: terraform apply -input=false tfplan
+      - id: out
+        run: |
+          echo "function_app=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
+          echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
+          echo "::add-mask::$(terraform output -raw swa_deployment_token)"
+          echo "$(terraform output -raw swa_deployment_token)" > ../swa_token.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swa-token
+          path: swa_token.txt
+          retention-days: 1
+
+  deploy-api:
+    name: Desplegar API (Azure Functions)
+    needs: apply
+    runs-on: ubuntu-latest
+    environment: produccion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.apply.outputs.function_app }}
+          package: backend
+          sku: flexconsumption
+          remote-build: true
+      - name: Prueba de humo
+        run: |
+          for i in 1 2 3 4 5 6; do
+            curl -fsS "${{ needs.apply.outputs.api_url }}/api/health" && exit 0 || sleep 20
+          done
+          exit 1
+
+  deploy-web:
+    name: Desplegar PWA (Static Web Apps)
+    needs: [apply, deploy-api]
+    runs-on: ubuntu-latest
+    environment: produccion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: swa-token
+      - id: token
+        run: echo "value=$(cat swa_token.txt)" >> "$GITHUB_OUTPUT" && rm swa_token.txt
+      - uses: Azure/static-web-apps-deploy@v1
+        env:
+          VITE_AUTH_MODE: entra
+          VITE_API_BASE_URL: ${{ needs.apply.outputs.api_url }}
+          VITE_ENTRA_TENANT_SUBDOMAIN: ${{ vars.ENTRA_TENANT_SUBDOMAIN }}
+          VITE_ENTRA_SPA_CLIENT_ID: ${{ vars.ENTRA_SPA_CLIENT_ID }}
+          VITE_ENTRA_API_CLIENT_ID: ${{ vars.ENTRA_API_CLIENT_ID }}
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.value }}
+          action: upload
+          app_location: frontend
+          output_location: dist
+          skip_api_build: true

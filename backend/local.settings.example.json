@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AUTH_MODE": "dev",
+    "STORAGE_BACKEND": "memory",
+    "MESSAGING_BACKEND": "inline",
+    "NOTIFIER_BACKEND": "console",
+    "SERVICEBUS_QUEUE": "notificaciones",
+    "SERVICEBUS__fullyQualifiedNamespace": "<namespace>.servicebus.windows.net",
+    "RECORD_ENC_KEY": "<64 caracteres hex; en Azure viene de Key Vault>",
+    "INTEGRATION_KEYS_SHA256": "<sha256 de la clave del socio>"
+  }
+}

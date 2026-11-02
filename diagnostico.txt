@@ -1,0 +1,85 @@
+=== fecha: Mon Nov  2 10:38:53 -05 2026
+=== archivos compose detectados: -f docker-compose.yml -f docker-compose.pruebas.yml
+=== docker compose ps
+NAME                   IMAGE                                      COMMAND                  SERVICE   CREATED          STATUS                   PORTS
+saludcerca-api-1       saludcerca-api                             "python dev_server.py"   api       2 minutes ago    Up 2 minutes             0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+saludcerca-mailpit-1   axllent/mailpit:latest                     "/mailpit"               mailpit   19 minutes ago   Up 2 minutes (healthy)   0.0.0.0:1025->1025/tcp, [::]:1025->1025/tcp, 0.0.0.0:8025->8025/tcp, [::]:8025->8025/tcp
+saludcerca-oidc-1      ghcr.io/navikt/mock-oauth2-server:2.1.10   "java -cp @/app/jib-…"   oidc      19 minutes ago   Up 2 minutes             0.0.0.0:8090->8080/tcp, [::]:8090->8080/tcp
+saludcerca-web-1       saludcerca-web                             "/docker-entrypoint.…"   web       2 minutes ago    Up 2 minutes             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+
+=== /api/health
+{"estado":"ok","auth":"oidc","datos":"memory","mensajeria":"inline","avisos":"smtp"}
+=== Mailpit (mensajes recibidos)
+{"total":0,"unread":0,"count":0,"messages_count":0,"messages_unread":0,"start":0,"tags":[],"messages":[]}
+
+=== logs api (últimas 120 líneas)
+api-1  | 2026-11-02 15:36:34,736 saludcerca.cifrado Usando la llave de cifrado de demostración (solo para entorno local)
+api-1  | INFO:     Started server process [1]
+api-1  | INFO:     Waiting for application startup.
+api-1  | INFO:     Application startup complete.
+api-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+api-1  | INFO:     172.18.0.5:54558 - "GET /api/me HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:54574 - "GET /api/avisos-disponibilidad HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:54590 - "GET /api/notificaciones HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:54604 - "GET /api/citas HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:54612 - "GET /api/me HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:54622 - "GET /api/notificaciones HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:54620 - "GET /api/avisos-disponibilidad HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:54624 - "GET /api/citas HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57700 - "GET /api/me HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57710 - "GET /api/notificaciones HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57718 - "GET /api/avisos-disponibilidad HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57712 - "GET /api/citas HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57732 - "GET /api/me HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57738 - "GET /api/notificaciones HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57740 - "GET /api/avisos-disponibilidad HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57770 - "GET /api/citas HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57780 - "GET /api/especialidades HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57774 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57784 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57794 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57800 - "GET /api/medicos?especialidad=Cardiolog%C3%ADa HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57798 - "GET /api/disponibilidad?especialidad=Cardiolog%C3%ADa&dias=14 HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:57818 - "POST /api/avisos-disponibilidad HTTP/1.0" 201 Created
+api-1  | INFO:     172.18.0.5:58880 - "GET /api/me HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:58884 - "GET /api/citas HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:35876 - "GET /api/medicos/me/agenda HTTP/1.0" 200 OK
+api-1  | 2026-11-02 15:37:18,329 saludcerca.api agenda actualizada por med-cesar: 2 franjas
+api-1  | 2026-11-02 15:37:18,345 saludcerca.avisos disponibilidad: Cardiología -> 1 avisos enviados
+api-1  | INFO:     172.18.0.5:50322 - "PUT /api/medicos/me/agenda HTTP/1.0" 200 OK
+api-1  | 2026-11-02 15:37:21,661 saludcerca.api agenda actualizada por med-cesar: 2 franjas
+api-1  | INFO:     172.18.0.5:50576 - "PUT /api/medicos/me/agenda HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:50578 - "GET /api/avisos-disponibilidad HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:50594 - "GET /api/notificaciones HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:50602 - "GET /api/notificaciones HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:50600 - "GET /api/avisos-disponibilidad HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51144 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51146 - "GET /api/especialidades HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51156 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51170 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51178 - "GET /api/disponibilidad?especialidad=Cardiolog%C3%ADa&dias=14 HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51180 - "GET /api/medicos?especialidad=Cardiolog%C3%ADa HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51192 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51196 - "GET /api/especialidades HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51200 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     172.18.0.5:51204 - "GET /api/health HTTP/1.0" 200 OK
+api-1  | INFO:     192.168.65.1:19740 - "GET /api/health HTTP/1.1" 200 OK
+
+=== logs mailpit / oidc (últimas 20)
+oidc-1  | SLF4J(I): Connected with provider of type [ch.qos.logback.classic.spi.LogbackServiceProvider]
+oidc-1  | SLF4J(I): Connected with provider of type [ch.qos.logback.classic.spi.LogbackServiceProvider]
+oidc-1  | SLF4J(I): Connected with provider of type [ch.qos.logback.classic.spi.LogbackServiceProvider]
+mailpit-1  | time="2026/11/02 15:19:01" level=info msg="[smtpd] starting on [::]:1025 (no encryption)"
+mailpit-1  | time="2026/11/02 15:19:01" level=warning msg="[http] listening on [::]:8025 without --ui-auth-file or --allowed-hosts; the API is reachable from any host that can route to this interface"
+mailpit-1  | time="2026/11/02 15:19:01" level=info msg="[http] starting on [::]:8025"
+mailpit-1  | time="2026/11/02 15:19:01" level=info msg="[http] accessible via http://localhost:8025/"
+mailpit-1  | [db] got terminated signal, shutting down
+mailpit-1  | time="2026/11/02 15:27:11" level=info msg="[smtpd] starting on [::]:1025 (no encryption)"
+mailpit-1  | time="2026/11/02 15:27:11" level=warning msg="[http] listening on [::]:8025 without --ui-auth-file or --allowed-hosts; the API is reachable from any host that can route to this interface"
+mailpit-1  | time="2026/11/02 15:27:11" level=info msg="[http] starting on [::]:8025"
+mailpit-1  | time="2026/11/02 15:27:11" level=info msg="[http] accessible via http://localhost:8025/"
+mailpit-1  | [db] got terminated signal, shutting down
+mailpit-1  | time="2026/11/02 15:36:34" level=info msg="[smtpd] starting on [::]:1025 (no encryption)"
+mailpit-1  | time="2026/11/02 15:36:34" level=warning msg="[http] listening on [::]:8025 without --ui-auth-file or --allowed-hosts; the API is reachable from any host that can route to this interface"
+mailpit-1  | time="2026/11/02 15:36:34" level=info msg="[http] starting on [::]:8025"
+mailpit-1  | time="2026/11/02 15:36:34" level=info msg="[http] accessible via http://localhost:8025/"

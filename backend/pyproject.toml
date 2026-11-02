@@ -1,0 +1,16 @@
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S"]
+"dev_server.py" = ["S104"]
+"app/integrations.py" = ["S105"]
+"app/seed.py" = ["S105"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
