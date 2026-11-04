@@ -6,6 +6,7 @@ import { PacienteHome } from './views/PacienteHome';
 import { MedicoHome } from './views/MedicoHome';
 import { AdminHome } from './views/AdminHome';
 import { Perfil } from './views/Perfil';
+import { Consentimiento } from './views/Consentimiento';
 
 function useOnline() {
   const [online, setOnline] = useState(navigator.onLine);
@@ -50,10 +51,11 @@ export function App() {
         )}
       </header>
       {!online && <div className="banner">Sin conexión: verá sus últimas citas guardadas. Los cambios se podrán hacer al volver la señal.</div>}
-      {AUTH_MODE === 'dev' && <div className="banner demo">Modo demostración: datos ficticios, sin servicios de Azure.</div>}
+      {AUTH_MODE === 'dev' && <div className="banner demo">Modo demostración: datos ficticios.</div>}
       <main className="content">
         {cargando ? <p className="muted">Cargando…</p>
           : !usuario ? <Login onLogin={cargar} />
+          : usuario.rol === 'paciente' && !usuario.consentimiento_en ? <Consentimiento onAceptado={setUsuario} onSalir={salir} />
           : verPerfil ? <Perfil usuario={usuario} onGuardado={(u) => { setUsuario(u); setVerPerfil(false); }} onVolver={() => setVerPerfil(false)} />
           : usuario.rol === 'paciente' ? <PacienteHome usuario={usuario} />
           : usuario.rol === 'medico' ? <MedicoHome usuario={usuario} />

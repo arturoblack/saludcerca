@@ -198,7 +198,8 @@ class CosmosRepository:  # pragma: no cover - requiere una cuenta de Cosmos DB
         return nota
 
     def list_notas(self, paciente_id: str) -> list[NotaAlmacenada]:
-        return self._query(self._historial, NotaAlmacenada, "SELECT * FROM c ORDER BY c.fecha DESC", [], partition_key=paciente_id)
+        return self._query(self._historial, NotaAlmacenada, "SELECT * FROM c ORDER BY c.fecha DESC", [],
+                           partition_key=paciente_id)
 
     def add_notificacion(self, n: Notificacion) -> Notificacion:
         self._notificaciones.upsert_item(self._dump(n))
@@ -236,7 +237,7 @@ class CosmosRepository:  # pragma: no cover - requiere una cuenta de Cosmos DB
             filtros.append("c.estado = @e")
             params.append({"name": "@e", "value": estado.value})
         where = f" WHERE {' AND '.join(filtros)}" if filtros else ""
-        return self._query(self._solicitudes, SolicitudAviso, f"SELECT * FROM c{where} ORDER BY c.creada_en", params,
+        return self._query(self._solicitudes, SolicitudAviso, f"SELECT * FROM c{where} ORDER BY c.creada_en", params,  # noqa: S608 - filtros fijos; valores por parámetro
                            partition_key=especialidad)
 
 def build_repository(settings: Settings) -> Repository:

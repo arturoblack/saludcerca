@@ -35,7 +35,7 @@ export function Login({ onLogin }: { onLogin: () => void }) {
       {error && <p className="error">{error}</p>}
       <div className="list">
         {usuarios.map((u) => (
-          <button key={u.id} className="row-button" onClick={() => { iniciarSesionDev(u.id); onLogin(); }}>
+          <button key={u.id} className="row-button" onClick={async () => { await iniciarSesionDev(u.id); onLogin(); }}>
             <span className={`pill ${u.rol}`}>{etiqueta[u.rol]}</span>
             <span className="grow">
               <strong>{u.nombre}</strong>

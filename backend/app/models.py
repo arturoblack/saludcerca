@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import UTC, date, datetime, time
+from enum import StrEnum
 from typing import Literal
-from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -18,25 +18,28 @@ def new_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
-class Rol(str, Enum):
+CONSENTIMIENTO_VERSION = "2026-11"
+
+
+class Rol(StrEnum):
     paciente = "paciente"
     medico = "medico"
     admin = "admin"
 
 
-class Canal(str, Enum):
+class Canal(StrEnum):
     sms = "sms"
     email = "email"
     app = "app"
 
 
-class EstadoCita(str, Enum):
+class EstadoCita(StrEnum):
     programada = "programada"
     cancelada = "cancelada"
     atendida = "atendida"
 
 
-class Modalidad(str, Enum):
+class Modalidad(StrEnum):
     video = "video"
     audio = "audio"
 
@@ -50,6 +53,8 @@ class Usuario(BaseModel):
     canal_preferido: Canal = Canal.app
     especialidad: str | None = None  # solo médicos
     establecimiento: str | None = None
+    consentimiento_en: datetime | None = None  # Ley 29733: cuándo aceptó el tratamiento de sus datos
+    consentimiento_version: str | None = None
 
 
 class Cita(BaseModel):
@@ -157,7 +162,7 @@ ESPECIALIDADES = [
 ]
 
 
-class EstadoSolicitud(str, Enum):
+class EstadoSolicitud(StrEnum):
     activa = "activa"
     notificada = "notificada"
     cancelada = "cancelada"
@@ -201,6 +206,10 @@ class NotaIn(BaseModel):
     signos: SignosVitales | None = None
     apuntes: str | None = Field(default=None, max_length=4000)
     adjuntos: list[str] = Field(default_factory=list, max_length=10)
+
+
+class ConsentimientoIn(BaseModel):
+    acepta: Literal[True]  # el rechazo no se registra: sin aceptar no se usa el servicio
 
 
 class PerfilIn(BaseModel):

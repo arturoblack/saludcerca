@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run build
 
   terraform:
@@ -67,7 +67,7 @@ jobs:
         with:
           node-version: "20"
       - run: pip install -r backend/requirements-dev.txt playwright && playwright install --with-deps chromium
-      - run: cd frontend && npm install --no-audit --no-fund && npm run build
+      - run: cd frontend && npm ci --no-audit --no-fund && npm run build
       - run: cd backend && (python dev_server.py &) && sleep 3
       - run: python e2e/demo_flow.py http://localhost:8000
       - uses: actions/upload-artifact@v4

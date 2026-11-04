@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from datetime import date, timedelta
 
 from pydantic import BaseModel, ValidationError
 from starlette.applications import Starlette
@@ -16,18 +17,34 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from datetime import date, timedelta
-
 from . import fhir, integrations
 from .agenda import HORIZONTE_DIAS, es_turno_libre, turnos_libres
-from .auth import AuthError, exigir_rol, usuario_actual
+from .auth import AuthError, exigir_consentimiento, exigir_rol, usuario_actual
 from .cifrado import Cifrador, build_cifrador
 from .config import Settings, get_settings
 from .historial import guardar_nota, leer_notas
 from .messaging import LIMA, Publisher, build_notifier, build_publisher, publicar_cita_creada
 from .models import (
-    ESPECIALIDADES, Agenda, AgendaIn, PerfilIn, Cita, CitaIn, DocumentoIn, EstadoCita, EstadoSolicitud, MedicoIn, NotaClinica, NotaIn,
-    Rol, SolicitudAviso, SolicitudAvisoIn, Usuario, new_id, now_utc,
+    CONSENTIMIENTO_VERSION,
+    ESPECIALIDADES,
+    Agenda,
+    AgendaIn,
+    Cita,
+    CitaIn,
+    ConsentimientoIn,
+    DocumentoIn,
+    EstadoCita,
+    EstadoSolicitud,
+    MedicoIn,
+    NotaClinica,
+    NotaIn,
+    PerfilIn,
+    Rol,
+    SolicitudAviso,
+    SolicitudAvisoIn,
+    Usuario,
+    new_id,
+    now_utc,
 )
 from .repository import Repository, build_repository
 from .seed import cargar_demo
@@ -97,8 +114,8 @@ def create_app(settings: Settings | None = None, repo: Repository | None = None)
     notifier = build_notifier(settings)
     cifrador = build_cifrador(settings.record_enc_key, settings.es_local)
     svc = Services(settings, repo, build_publisher(settings, repo, notifier), cifrador)
-    if settings.seed_demo_data and (settings.storage_backend == "memory" or settings.cosmos_key):
-        cargar_demo(repo, cifrador)  # nunca en Azure: allí no hay COSMOS_KEY
+    if settings.seed_demo_data:  # en Azure solo con auth_mode=dev (Terraform fija SEED_DEMO_DATA)
+        cargar_demo(repo, cifrador)
 
     def handler(fn):
         async def wrapped(request: Request):
@@ -142,6 +159,15 @@ def create_app(settings: Settings | None = None, repo: Repository | None = None)
         return _json(actualizado)
 
     @handler
+    async def aceptar_consentimiento(request: Request, user: Usuario):
+        await _body(request, ConsentimientoIn)
+        if user.consentimiento_en is None:  # se conserva la primera aceptación
+            user = repo.upsert_usuario(user.model_copy(update={
+                "consentimiento_en": now_utc(), "consentimiento_version": CONSENTIMIENTO_VERSION}))
+            _audit(request, "consentimiento.aceptado", user, user.id, version=CONSENTIMIENTO_VERSION)
+        return _json(user)
+
+    @handler
     async def medicos(request: Request, user: Usuario):
         res = []
         for m in _medicos(request.query_params.get("especialidad")):
@@ -177,6 +203,7 @@ def create_app(settings: Settings | None = None, repo: Repository | None = None)
     @handler
     async def crear_solicitud(request: Request, user: Usuario):
         exigir_rol(user, Rol.paciente)
+        exigir_consentimiento(user)
         data: SolicitudAvisoIn = await _body(request, SolicitudAvisoIn)
         if _hay_turnos(data.especialidad, data.medico_id):
             raise AuthError(409, "Ya hay turnos disponibles: puede reservar ahora mismo")
@@ -289,6 +316,7 @@ def create_app(settings: Settings | None = None, repo: Repository | None = None)
     @handler
     async def crear_cita(request: Request, user: Usuario):
         exigir_rol(user, Rol.paciente)
+        exigir_consentimiento(user)
         data: CitaIn = await _body(request, CitaIn)
         medico = repo.get_usuario(data.medico_id)
         if medico is None or medico.rol != Rol.medico:
@@ -358,6 +386,7 @@ def create_app(settings: Settings | None = None, repo: Repository | None = None)
 
     @handler
     async def url_documento(request: Request, user: Usuario):
+        exigir_consentimiento(user)
         data: DocumentoIn = await _body(request, DocumentoIn)
         if not _puede_ver_paciente(svc, user, data.paciente_id):
             raise AuthError(403, "No tiene acceso a este paciente")
@@ -434,6 +463,7 @@ def create_app(settings: Settings | None = None, repo: Repository | None = None)
         Route("/api/dev/blob/{ruta:path}", dev_blob, methods=["PUT"]),
         Route("/api/me", me, methods=["GET"]),
         Route("/api/me", actualizar_me, methods=["PUT"]),
+        Route("/api/me/consentimiento", aceptar_consentimiento, methods=["POST"]),
         Route("/api/medicos", medicos, methods=["GET"]),
         Route("/api/medicos", registrar_medico, methods=["POST"]),
         Route("/api/avisos-disponibilidad", mis_solicitudes, methods=["GET"]),

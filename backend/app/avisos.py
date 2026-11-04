@@ -9,6 +9,7 @@ por su canal (SMS si usa teléfono básico). Cada solicitud se avisa una sola ve
 from __future__ import annotations
 
 import logging
+
 from .agenda import turnos_libres
 from .messaging import LIMA, Notifier, destino_para
 from .models import EstadoSolicitud, Notificacion, Rol, now_utc

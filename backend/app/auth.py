@@ -2,8 +2,8 @@
 
 - AUTH_MODE=entra: valida el JWT (firma, emisor, audiencia y vencimiento) emitido por
   Microsoft Entra External ID. El rol sale del claim `roles` (App Roles: Paciente, Medico, Admin).
-- AUTH_MODE=dev: acepta `Bearer dev:<id_usuario>` para la demo local. Nunca se habilita en Azure
-  (Terraform fija AUTH_MODE=entra).
+- AUTH_MODE=dev: acepta `Bearer dev:<id_usuario>` para la demo. En Azure solo si Terraform recibe
+  auth_mode="dev" (por defecto fija AUTH_MODE=entra).
 """
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ from starlette.requests import Request
 from .config import Settings
 from .models import Canal, Rol, Usuario
 from .repository import Repository
-
 
 log = logging.getLogger("saludcerca.auth")
 
@@ -119,6 +118,11 @@ def usuario_actual(request: Request, s: Settings, repo: Repository) -> Usuario:
             email=claims.get("email") or claims.get("preferred_username"), canal_preferido=Canal.app,
         ))
     return usuario
+
+
+def exigir_consentimiento(usuario: Usuario) -> None:
+    if usuario.rol == Rol.paciente and usuario.consentimiento_en is None:
+        raise AuthError(403, "Debe aceptar el tratamiento de sus datos personales antes de continuar")
 
 
 def exigir_rol(usuario: Usuario, *roles: Rol) -> None:

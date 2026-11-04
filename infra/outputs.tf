@@ -7,16 +7,20 @@ output "function_app_name" {
 }
 
 output "api_url" {
-  value = "https://${azurerm_function_app_flex_consumption.api.default_hostname}"
+  description = "Puerta de enlace de API Management: es la URL que usa la PWA."
+  value       = azurerm_api_management.api.gateway_url
+}
+
+output "function_host" {
+  value = azurerm_function_app_flex_consumption.api.default_hostname
+}
+
+output "web_storage_account" {
+  value = azurerm_storage_account.web.name
 }
 
 output "web_url" {
-  value = var.habilitar_front_door ? "https://${azurerm_cdn_frontdoor_endpoint.web[0].host_name}" : "https://${azurerm_static_web_app.web.default_host_name}"
-}
-
-output "swa_deployment_token" {
-  value     = azurerm_static_web_app.web.api_key
-  sensitive = true
+  value = var.habilitar_front_door ? "https://${azurerm_cdn_frontdoor_endpoint.web[0].host_name}" : "https://${azurerm_storage_account.web.primary_web_host}"
 }
 
 output "cosmos_endpoint" {

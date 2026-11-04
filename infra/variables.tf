@@ -25,15 +25,20 @@ variable "entorno" {
 }
 
 variable "location" {
-  description = "Región principal. Chile Central es la más cercana al Perú; verifique que Functions Flex Consumption esté disponible (az functionapp list-flexconsumption-locations) o use brazilsouth."
+  description = "Región principal. México Central: la más cercana al Perú con Functions Flex Consumption entre las que permite Azure for Students (Chile Central aún no ofrece Flex)."
   type        = string
-  default     = "chilecentral"
+  default     = "mexicocentral"
 }
 
-variable "swa_location" {
-  description = "Región de Static Web Apps (el contenido se distribuye globalmente; solo afecta a la gestión)."
+variable "apim_publisher_email" {
+  description = "Correo de contacto de API Management."
   type        = string
-  default     = "eastus2"
+}
+
+variable "paises_permitidos" {
+  description = "Códigos ISO de los países desde los que el WAF de Front Door admite tráfico."
+  type        = list(string)
+  default     = ["PE"]
 }
 
 variable "fn_max_instancias" {
@@ -46,6 +51,17 @@ variable "fn_memoria_mb" {
   description = "Memoria por instancia en Flex Consumption (512, 2048 o 4096)."
   type        = number
   default     = 2048
+}
+
+# ponytail: "dev" solo para probar la demo en Azure sin tenant de Entra; cualquiera con la URL entra con usuarios ficticios.
+variable "auth_mode" {
+  description = "entra (producción) o dev (demo con usuarios ficticios y datos de ejemplo)."
+  type        = string
+  default     = "entra"
+  validation {
+    condition     = contains(["entra", "dev"], var.auth_mode)
+    error_message = "auth_mode debe ser entra o dev."
+  }
 }
 
 # ---------- Microsoft Entra External ID (se crea manualmente; ver README) ----------
@@ -81,7 +97,7 @@ variable "acs_sms_from" {
 variable "presupuesto_mensual_usd" {
   description = "Presupuesto mensual del grupo de recursos."
   type        = number
-  default     = 500
+  default     = 50
 }
 
 variable "presupuesto_inicio" {
@@ -105,7 +121,7 @@ variable "campana" {
 variable "habilitar_front_door" {
   description = "Crea Azure Front Door Standard con WAF (+ USD 35/mes de tarifa base)."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "integration_keys_sha256" {

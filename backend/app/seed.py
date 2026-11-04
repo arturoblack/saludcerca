@@ -1,19 +1,37 @@
 """Datos ficticios para la demo local. Ningún dato corresponde a personas reales."""
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from .cifrado import Cifrador
 from .historial import guardar_nota
 from .messaging import LIMA
-from .models import Agenda, Bloque, Canal, Cita, EstadoCita, Modalidad, NotaClinica, Rol, SignosVitales, Usuario
+from .models import (
+    CONSENTIMIENTO_VERSION,
+    Agenda,
+    Bloque,
+    Canal,
+    Cita,
+    EstadoCita,
+    Modalidad,
+    NotaClinica,
+    Rol,
+    SignosVitales,
+    Usuario,
+)
 from .repository import Repository
+
+_CONSENTIDO = datetime(2026, 1, 15, tzinfo=UTC)
 
 USUARIOS = [
     Usuario(id="pac-rosa", nombre="Rosa Quispe Mamani", rol=Rol.paciente, telefono="+51900000001",
-            email="rosa.demo@example.com", canal_preferido=Canal.app, establecimiento="P.S. San Pedro de Coris"),
+            email="rosa.demo@example.com", canal_preferido=Canal.app, establecimiento="P.S. San Pedro de Coris",
+            consentimiento_en=_CONSENTIDO, consentimiento_version=CONSENTIMIENTO_VERSION),
     Usuario(id="pac-juan", nombre="Juan Ccahuana Huamán", rol=Rol.paciente, telefono="+51900000002",
-            canal_preferido=Canal.sms, establecimiento="P.S. Santa Rosa de Lircay"),
+            canal_preferido=Canal.sms, establecimiento="P.S. Santa Rosa de Lircay",
+            consentimiento_en=_CONSENTIDO, consentimiento_version=CONSENTIMIENTO_VERSION),
+    Usuario(id="pac-maria", nombre="María Condori Yupanqui", rol=Rol.paciente, telefono="+51900000003",
+            canal_preferido=Canal.app, establecimiento="P.S. San Pedro de Coris"),  # primer ingreso: pide consentimiento
     Usuario(id="med-luis", nombre="Dr. Luis Herrera Paredes", rol=Rol.medico, especialidad="Medicina general",
             email="luis.demo@example.com"),
     Usuario(id="med-ana", nombre="Dra. Ana Torres Rojas", rol=Rol.medico, especialidad="Pediatría",

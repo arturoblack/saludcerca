@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+import pytest
+
 from app.messaging import LIMA
 
 
@@ -100,6 +102,7 @@ def test_token_de_videoconsulta_solo_para_participantes(client):
     cita = next(c for c in client.get("/api/citas", "pac-rosa").json() if c["estado"] == "programada")
     ok = client.post(f"/api/citas/{cita['id']}/videoconsulta", "pac-rosa")
     assert ok.status_code == 200 and ok.json()["sala"] == f"cita-{cita['id']}"
+    assert client.post(f"/api/citas/{cita['id']}/videoconsulta", "med-luis").json()["grupo"] == ok.json()["grupo"]
     assert client.post(f"/api/citas/{cita['id']}/videoconsulta", "pac-juan").status_code == 404
 
 
@@ -108,3 +111,20 @@ def test_url_de_subida_limpia_el_nombre(client):
     assert r.status_code == 201
     blob = r.json()["blob"]
     assert blob.startswith("pac-rosa/") and ".." not in blob and " " not in blob
+
+
+@pytest.mark.parametrize("expira", ["2026-11-03T10:00:00+00:00", __import__("datetime").datetime(2026, 11, 3, 10, tzinfo=__import__("datetime").UTC)])
+def test_token_de_video_acepta_el_vencimiento_como_texto_o_fecha(monkeypatch, expira):
+    import types
+
+    from app import integrations
+    from app.config import Settings
+
+    cliente = types.SimpleNamespace(create_user_and_token=lambda **_: (
+        types.SimpleNamespace(properties={"id": "8:acs:1"}), types.SimpleNamespace(token="t", expires_on=expira)))
+    modulo = types.SimpleNamespace(
+        CommunicationIdentityClient=types.SimpleNamespace(from_connection_string=lambda _: cliente),
+        CommunicationTokenScope=types.SimpleNamespace(VOIP="voip"))
+    monkeypatch.setitem(__import__("sys").modules, "azure.communication.identity", modulo)
+    r = integrations.token_videollamada(Settings(acs_connection_string="endpoint=x"), "c1", "u1")
+    assert r["modo"] == "azure" and r["expira"].startswith("2026-11-03T10:00:00") and r["grupo"]

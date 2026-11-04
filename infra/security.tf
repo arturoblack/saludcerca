@@ -51,7 +51,7 @@ resource "azurerm_key_vault_secret" "record_key" {
 # ---------- Mínimo privilegio para la identidad administrada de la Function App ----------
 locals {
   fn_principal = azurerm_function_app_flex_consumption.api.identity[0].principal_id
-  roles_fn     = {
+  roles_fn = {
     host_storage = { scope = azurerm_storage_account.func.id, role = "Storage Blob Data Owner" }
     docs_blob    = { scope = azurerm_storage_account.docs.id, role = "Storage Blob Data Contributor" }
     docs_sas     = { scope = azurerm_storage_account.docs.id, role = "Storage Blob Delegator" }
@@ -107,4 +107,43 @@ resource "azurerm_monitor_diagnostic_setting" "docs" {
   enabled_log {
     category = "StorageWrite"
   }
+}
+
+# ---------- Llaves administradas por el cliente (CMK) para Cosmos DB y documentos ----------
+resource "azurerm_role_assignment" "deployer_crypto" {
+  scope                = azurerm_key_vault.kv.id
+  role_definition_name = "Key Vault Crypto Officer"
+  principal_id         = data.azurerm_client_config.actual.object_id
+}
+
+resource "time_sleep" "rbac_crypto" {
+  depends_on      = [azurerm_role_assignment.deployer_crypto]
+  create_duration = "60s"
+}
+
+resource "azurerm_key_vault_key" "cmk" {
+  name         = "cmk-datos"
+  key_vault_id = azurerm_key_vault.kv.id
+  key_type     = "RSA"
+  key_size     = 3072
+  key_opts     = ["wrapKey", "unwrapKey"]
+  depends_on   = [time_sleep.rbac_crypto]
+}
+
+resource "azurerm_user_assigned_identity" "cmk" {
+  name                = "id-cmk-${local.nombre}"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  tags                = local.tags
+}
+
+resource "azurerm_role_assignment" "cmk" {
+  scope                = azurerm_key_vault.kv.id
+  role_definition_name = "Key Vault Crypto Service Encryption User"
+  principal_id         = azurerm_user_assigned_identity.cmk.principal_id
+}
+
+resource "time_sleep" "rbac_cmk" {
+  depends_on      = [azurerm_role_assignment.cmk]
+  create_duration = "60s"
 }

@@ -9,7 +9,7 @@ resource "random_string" "sufijo" {
 locals {
   nombre = "${var.proyecto}-${var.entorno}"
   corto  = "${var.proyecto}${var.entorno}${random_string.sufijo.result}"
-  tags   = {
+  tags = {
     proyecto = var.proyecto
     entorno  = var.entorno
     campana  = var.campana
@@ -55,6 +55,7 @@ resource "azurerm_storage_account" "func" {
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = false
+  public_network_access_enabled   = false # solo por Private Endpoint (network.tf)
   tags                            = local.tags
 }
 
@@ -64,7 +65,36 @@ resource "azurerm_storage_container" "deploy" {
   container_access_type = "private"
 }
 
+# PWA: sitio web estático por HTTPS. Static Web Apps no está disponible en las regiones que permite
+# Azure for Students; el sitio se activa y se publica en el pipeline (plano de datos).
+resource "azurerm_storage_account" "web" {
+  name                            = substr("stweb${local.corto}", 0, 24)
+  location                        = azurerm_resource_group.rg.location
+  resource_group_name             = azurerm_resource_group.rg.name
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  min_tls_version                 = "TLS1_2"
+  allow_nested_items_to_be_public = false
+  shared_access_key_enabled       = false
+  tags                            = local.tags
+}
+
+resource "azurerm_role_assignment" "deployer_web" {
+  scope                = azurerm_storage_account.web.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = data.azurerm_client_config.actual.object_id
+}
+
+locals {
+  web_origenes = concat(
+    ["https://${azurerm_storage_account.web.primary_web_host}"],
+    [for e in azurerm_cdn_frontdoor_endpoint.web : "https://${e.host_name}"],
+  )
+}
+
 # Cuenta de documentos clínicos (resultados, imágenes, PDF).
+# Excepción al Private Endpoint: el navegador del paciente sube directo con una SAS de 10 minutos
+# limitada a un solo blob, así que el punto de conexión debe ser alcanzable desde internet.
 resource "azurerm_storage_account" "docs" {
   name                              = substr("stdoc${local.corto}", 0, 24)
   location                          = azurerm_resource_group.rg.location
@@ -76,6 +106,17 @@ resource "azurerm_storage_account" "docs" {
   shared_access_key_enabled         = false # solo Entra ID y SAS de delegación de usuario
   infrastructure_encryption_enabled = true  # doble cifrado AES-256 en reposo
   tags                              = local.tags
+  depends_on                        = [time_sleep.rbac_cmk]
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.cmk.id]
+  }
+
+  customer_managed_key {
+    key_vault_key_id          = azurerm_key_vault_key.cmk.versionless_id
+    user_assigned_identity_id = azurerm_user_assigned_identity.cmk.id
+  }
 
   blob_properties {
     versioning_enabled = true
@@ -86,7 +127,7 @@ resource "azurerm_storage_account" "docs" {
       days = 30
     }
     cors_rule {
-      allowed_origins    = ["https://${azurerm_static_web_app.web.default_host_name}"]
+      allowed_origins    = local.web_origenes
       allowed_methods    = ["PUT"]
       allowed_headers    = ["content-type", "x-ms-blob-type", "x-ms-version"]
       exposed_headers    = ["etag"]
@@ -101,7 +142,8 @@ resource "azurerm_storage_container" "documentos" {
   container_access_type = "private"
 }
 
-# Almacenamiento escalonado: Hot -> Cool (30 d) -> Cold (90 d) -> Archive (365 d).
+# Almacenamiento escalonado: Hot -> Cool (30 d) -> Cold (90 d).
+# ponytail: Azure rechaza tierToArchive en esta cuenta (mexicocentral, probado con ZRS y LRS); Archive a 365 d queda como diseño objetivo.
 resource "azurerm_storage_management_policy" "escalonado" {
   storage_account_id = azurerm_storage_account.docs.id
 
@@ -114,9 +156,8 @@ resource "azurerm_storage_management_policy" "escalonado" {
     }
     actions {
       base_blob {
-        tier_to_cool_after_days_since_modification_greater_than    = 30
-        tier_to_cold_after_days_since_modification_greater_than    = 90
-        tier_to_archive_after_days_since_modification_greater_than = 365
+        tier_to_cool_after_days_since_modification_greater_than = 30
+        tier_to_cold_after_days_since_modification_greater_than = 90
       }
       version {
         delete_after_days_since_creation = 365
@@ -132,9 +173,18 @@ resource "azurerm_cosmosdb_account" "db" {
   resource_group_name           = azurerm_resource_group.rg.name
   offer_type                    = "Standard"
   kind                          = "GlobalDocumentDB"
-  local_authentication_disabled = true # sin claves: solo Managed Identity (RBAC de datos)
+  local_authentication_enabled  = false # sin claves: solo Managed Identity (RBAC de datos)
   minimal_tls_version           = "Tls12"
+  public_network_access_enabled = false # solo por Private Endpoint (network.tf)
+  key_vault_key_id              = azurerm_key_vault_key.cmk.versionless_id
+  default_identity_type         = "UserAssignedIdentity=${azurerm_user_assigned_identity.cmk.id}"
   tags                          = local.tags
+  depends_on                    = [time_sleep.rbac_cmk]
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.cmk.id]
+  }
 
   capabilities {
     name = "EnableServerless"
@@ -250,6 +300,7 @@ resource "azurerm_function_app_flex_consumption" "api" {
   maximum_instance_count      = var.fn_max_instancias
   instance_memory_in_mb       = var.fn_memoria_mb
   https_only                  = true
+  virtual_network_subnet_id   = azurerm_subnet.fn.id
   tags                        = local.tags
 
   identity {
@@ -258,14 +309,11 @@ resource "azurerm_function_app_flex_consumption" "api" {
 
   site_config {
     application_insights_connection_string = azurerm_application_insights.ai.connection_string
-    cors {
-      allowed_origins = ["https://${azurerm_static_web_app.web.default_host_name}"]
-    }
   }
 
   app_settings = {
     AzureWebJobsStorage__accountName    = azurerm_storage_account.func.name
-    AUTH_MODE                           = "entra"
+    AUTH_MODE                           = var.auth_mode
     ENTRA_TENANT_SUBDOMAIN              = var.entra_tenant_subdomain
     ENTRA_TENANT_ID                     = var.entra_tenant_id
     ENTRA_API_CLIENT_ID                 = var.entra_api_client_id
@@ -283,18 +331,8 @@ resource "azurerm_function_app_flex_consumption" "api" {
     ACS_EMAIL_FROM                      = "DoNotReply@${azurerm_email_communication_service_domain.azure.from_sender_domain}"
     BLOB_ACCOUNT_URL                    = azurerm_storage_account.docs.primary_blob_endpoint
     BLOB_CONTAINER                      = azurerm_storage_container.documentos.name
-    SEED_DEMO_DATA                      = "false"
+    SEED_DEMO_DATA                      = var.auth_mode == "dev" ? "true" : "false"
     RECORD_ENC_KEY                      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.record_key.versionless_id})"
     INTEGRATION_KEYS_SHA256             = var.integration_keys_sha256
   }
-}
-
-# ---------- Frontend ----------
-resource "azurerm_static_web_app" "web" {
-  name                = "swa-${local.nombre}"
-  location            = var.swa_location
-  resource_group_name = azurerm_resource_group.rg.name
-  sku_tier            = "Standard"
-  sku_size            = "Standard"
-  tags                = local.tags
 }

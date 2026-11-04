@@ -10,6 +10,17 @@ export const AUTH_MODE = env.VITE_AUTH_MODE ?? 'dev';
 
 const DEV_KEY = 'saludcerca.dev.user';
 
+// El service worker guarda citas y perfil por URL: en una tableta compartida no deben pasar al siguiente usuario.
+// Se limpia al salir y también al entrar, por si la sesión anterior terminó cerrando la pestaña.
+async function limpiarCacheApi(): Promise<void> {
+  if (!('caches' in window)) return;
+  for (const nombre of await caches.keys()) {
+    const cache = await caches.open(nombre);
+    const entradas = await cache.keys();
+    await Promise.all(entradas.filter((r) => new URL(r.url).pathname.startsWith('/api/')).map((r) => cache.delete(r)));
+  }
+}
+
 type Msal = import('@azure/msal-browser').PublicClientApplication;
 let msal: Msal | null = null;
 
@@ -34,6 +45,7 @@ async function getMsal(): Promise<Msal> {
 }
 
 export async function iniciarSesionEntra(): Promise<void> {
+  await limpiarCacheApi();
   const app = await getMsal();
   await app.loginRedirect({ scopes });
 }
@@ -48,6 +60,7 @@ const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replac
 const aleatorio = (n = 32) => b64url(crypto.getRandomValues(new Uint8Array(n)));
 
 async function iniciarSesionOidc(): Promise<void> {
+  await limpiarCacheApi();
   const verifier = aleatorio(48);
   const state = aleatorio(16);
   const challenge = b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
@@ -91,7 +104,8 @@ export async function iniciarSesion(): Promise<void> {
   return iniciarSesionEntra();
 }
 
-export function iniciarSesionDev(usuarioId: string): void {
+export async function iniciarSesionDev(usuarioId: string): Promise<void> {
+  await limpiarCacheApi();
   sessionStorage.setItem(DEV_KEY, usuarioId);
 }
 
@@ -119,6 +133,7 @@ export async function getToken(): Promise<string | null> {
 }
 
 export async function cerrarSesion(): Promise<void> {
+  await limpiarCacheApi();
   if (AUTH_MODE === 'dev') {
     sessionStorage.removeItem(DEV_KEY);
     return;

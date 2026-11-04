@@ -1,0 +1,8 @@
+# Videollamada real con Azure Communication Services (el resto sigue local).
+#
+#   echo "ACS_CONNECTION_STRING=$(az communication list-key -n <acs> -g rg-saludcerca-dev --query primaryConnectionString -o tsv)" > .env
+#   docker compose -f docker-compose.yml -f docker-compose.acs.yml up --build -d
+services:
+  api:
+    environment:
+      ACS_CONNECTION_STRING: ${ACS_CONNECTION_STRING:?falta ACS_CONNECTION_STRING en .env}

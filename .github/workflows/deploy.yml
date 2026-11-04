@@ -52,6 +52,7 @@ jobs:
     outputs:
       function_app: ${{ steps.out.outputs.function_app }}
       api_url: ${{ steps.out.outputs.api_url }}
+      web_account: ${{ steps.out.outputs.web_account }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
@@ -67,13 +68,7 @@ jobs:
         run: |
           echo "function_app=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
-          echo "::add-mask::$(terraform output -raw swa_deployment_token)"
-          echo "$(terraform output -raw swa_deployment_token)" > ../swa_token.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: swa-token
-          path: swa_token.txt
-          retention-days: 1
+          echo "web_account=$(terraform output -raw web_storage_account)" >> "$GITHUB_OUTPUT"
 
   deploy-api:
     name: Desplegar API (Azure Functions)
@@ -101,27 +96,30 @@ jobs:
           exit 1
 
   deploy-web:
-    name: Desplegar PWA (Static Web Apps)
+    name: Publicar PWA (sitio estático de Storage)
     needs: [apply, deploy-api]
     runs-on: ubuntu-latest
     environment: produccion
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: swa-token
-      - id: token
-        run: echo "value=$(cat swa_token.txt)" >> "$GITHUB_OUTPUT" && rm swa_token.txt
-      - uses: Azure/static-web-apps-deploy@v1
+          node-version: "20"
+      - name: Compilar
+        working-directory: frontend
         env:
           VITE_AUTH_MODE: entra
           VITE_API_BASE_URL: ${{ needs.apply.outputs.api_url }}
           VITE_ENTRA_TENANT_SUBDOMAIN: ${{ vars.ENTRA_TENANT_SUBDOMAIN }}
           VITE_ENTRA_SPA_CLIENT_ID: ${{ vars.ENTRA_SPA_CLIENT_ID }}
           VITE_ENTRA_API_CLIENT_ID: ${{ vars.ENTRA_API_CLIENT_ID }}
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - uses: azure/login@v2
         with:
-          azure_static_web_apps_api_token: ${{ steps.token.outputs.value }}
-          action: upload
-          app_location: frontend
-          output_location: dist
-          skip_api_build: true
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Publicar
+        run: scripts/publicar-web.sh "${{ needs.apply.outputs.web_account }}"

@@ -54,8 +54,8 @@ resource "azurerm_cdn_frontdoor_origin" "swa" {
   name                           = "swa"
   cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.web[0].id
   enabled                        = true
-  host_name                      = azurerm_static_web_app.web.default_host_name
-  origin_host_header             = azurerm_static_web_app.web.default_host_name
+  host_name                      = azurerm_storage_account.web.primary_web_host
+  origin_host_header             = azurerm_storage_account.web.primary_web_host
   certificate_name_check_enabled = true
 }
 
@@ -94,6 +94,19 @@ resource "azurerm_cdn_frontdoor_firewall_policy" "waf" {
       match_variable = "RemoteAddr"
       operator       = "IPMatch"
       match_values   = ["0.0.0.0/0", "::/0"]
+    }
+  }
+
+  custom_rule {
+    name     = "SoloPaisesPermitidos"
+    type     = "MatchRule"
+    priority = 2
+    action   = "Block"
+    match_condition {
+      match_variable     = "SocketAddr"
+      operator           = "GeoMatch"
+      negation_condition = true
+      match_values       = var.paises_permitidos
     }
   }
 }

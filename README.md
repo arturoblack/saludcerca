@@ -104,7 +104,7 @@ docker compose -f docker-compose.yml -f docker-compose.pruebas.yml up --build
 | `oidc` ([mock-oauth2-server](https://github.com/navikt/mock-oauth2-server)) | Login real con OpenID Connect (Authorization Code + PKCE) y tokens JWT firmados que la API valida (firma, emisor, vencimiento) | http://localhost:8090 |
 | `mailpit` | Bandeja donde llegan los SMS (como "SMS para +51…") y los correos que envía la app | http://localhost:8025 |
 
-En http://localhost:8080 pulse **Ingresar**; en la pantalla del proveedor de prueba escriba como *username* el usuario de la demo (`pac-rosa`, `pac-juan`, `med-luis`, `admin-ong`…). Las confirmaciones, recordatorios y avisos de disponibilidad aparecen en Mailpit.
+En http://localhost:8080 pulse **Ingresar**; en la pantalla del proveedor de prueba escriba como *username* el usuario de la demo (`pac-rosa`, `pac-juan`, `med-luis`, `admin-ong`…). Las confirmaciones, cancelaciones y avisos de disponibilidad aparecen en Mailpit. Los recordatorios de 24 h no: en local solo se registran como "programada" en **Avisos**; en Azure los entrega Service Bus con un mensaje programado.
 
 Este archivo es solo para pruebas: **no cambia el despliegue en Azure ni el CI/CD**. En Azure el login es Entra External ID (`AUTH_MODE=entra`) y los avisos salen por Communication Services (`NOTIFIER_BACKEND=acs`); ambos valores los fija Terraform.
 

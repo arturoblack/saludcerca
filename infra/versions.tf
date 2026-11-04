@@ -28,6 +28,10 @@ provider "azurerm" {
     resource_group {
       prevent_deletion_if_contains_resources = true
     }
+    # La cuenta interna solo acepta tráfico por Private Endpoint: Terraform opera por el plano de control.
+    storage {
+      data_plane_available = false
+    }
   }
   # Sin claves de cuenta: Terraform usa Entra ID para las operaciones de datos de Storage.
   storage_use_azuread = true

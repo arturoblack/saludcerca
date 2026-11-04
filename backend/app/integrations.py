@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import timedelta
 
 from .config import Settings
@@ -44,8 +45,9 @@ def url_subida(settings: Settings, paciente_id: str, nombre_archivo: str, minuto
 def token_videollamada(settings: Settings, cita_id: str, usuario_id: str) -> dict:
     """Emite una identidad y un token de ACS válidos para unirse a la sala de la cita."""
     sala = f"cita-{cita_id}"
+    grupo = str(uuid.uuid5(uuid.NAMESPACE_URL, f"saludcerca:{sala}"))  # paciente y médico entran a la misma llamada
     if not (settings.acs_connection_string or settings.acs_endpoint):
-        return {"sala": sala, "token": f"demo-token-{usuario_id}", "acs_user_id": f"demo:{usuario_id}",
+        return {"sala": sala, "grupo": grupo, "token": f"demo-token-{usuario_id}", "acs_user_id": f"demo:{usuario_id}",
                 "expira": (now_utc() + timedelta(hours=1)).isoformat(), "modo": "simulado"}
 
     from azure.communication.identity import CommunicationIdentityClient, CommunicationTokenScope  # pragma: no cover
@@ -57,5 +59,7 @@ def token_videollamada(settings: Settings, cita_id: str, usuario_id: str) -> dic
         client = CommunicationIdentityClient(settings.acs_endpoint, DefaultAzureCredential())
     user, token = client.create_user_and_token(scopes=[CommunicationTokenScope.VOIP],  # pragma: no cover
                                                token_expires_in=timedelta(hours=1))
-    return {"sala": sala, "token": token.token, "acs_user_id": user.properties["id"],  # pragma: no cover
-            "expira": token.expires_on.isoformat(), "modo": "azure"}
+    # Según la versión del SDK, expires_on es datetime o ya viene como texto ISO 8601.
+    expira = token.expires_on.isoformat() if hasattr(token.expires_on, "isoformat") else token.expires_on  # pragma: no cover
+    return {"sala": sala, "grupo": grupo, "token": token.token, "acs_user_id": user.properties["id"],  # pragma: no cover
+            "expira": expira, "modo": "azure"}

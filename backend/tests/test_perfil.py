@@ -23,3 +23,19 @@ def test_cada_usuario_solo_cambia_sus_datos(client):
     client.request("PUT", "/api/me", "pac-juan", {"email": "juan@example.com", "telefono": "+51900000002", "canal_preferido": "email"})
     assert client.get("/api/me", "pac-rosa").json()["email"] == "rosa.demo@example.com"
     assert client.get("/api/me", "pac-juan").json()["canal_preferido"] == "email"
+
+
+def test_sin_consentimiento_no_reserva_ni_pide_avisos(client):
+    assert client.get("/api/me", "pac-maria").json()["consentimiento_en"] is None
+    r = client.post("/api/avisos-disponibilidad", "pac-maria", {"especialidad": "Cardiología"})
+    assert r.status_code == 403 and "datos personales" in r.body.decode()
+    assert client.post("/api/me/consentimiento", "pac-maria", {"acepta": False}).status_code == 422
+    assert client.get("/api/me", "pac-maria").json()["consentimiento_en"] is None
+
+    primero = client.post("/api/me/consentimiento", "pac-maria", {"acepta": True}).json()
+    assert primero["consentimiento_en"] and primero["consentimiento_version"]
+    assert client.post("/api/avisos-disponibilidad", "pac-maria", {"especialidad": "Cardiología"}).status_code == 201
+    # aceptar otra vez o cambiar el perfil no altera la fecha original
+    assert client.post("/api/me/consentimiento", "pac-maria", {"acepta": True}).json()["consentimiento_en"] == primero["consentimiento_en"]
+    r = client.request("PUT", "/api/me", "pac-maria", {"telefono": "+51900000003", "canal_preferido": "sms"})
+    assert r.json()["consentimiento_en"] == primero["consentimiento_en"]

@@ -2,9 +2,10 @@ import json
 import logging
 
 import pytest
+from conftest import CLAVE_FHIR
+from cryptography.exceptions import InvalidTag
 
 from app.cifrado import Cifrador
-from conftest import CLAVE_FHIR
 
 
 def _nota(client, **extra):
@@ -27,7 +28,7 @@ def test_texto_cifrado_no_se_puede_mover_a_otro_paciente(client, repo):
     guardada = next(n for n in repo.notas.values() if n.id == r.json()["id"])
     cif = client.app.state.services.cifrador
     assert cif.descifrar(guardada.contenido, f"{guardada.paciente_id}:{guardada.id}")["diagnostico"] == "Gastritis aguda"
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidTag):
         cif.descifrar(guardada.contenido, f"pac-juan:{guardada.id}")
 
 

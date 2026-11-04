@@ -5,7 +5,7 @@ export type Canal = 'sms' | 'email' | 'app';
 
 export interface Usuario {
   id: string; nombre: string; rol: Rol; email?: string; telefono?: string;
-  canal_preferido: Canal; especialidad?: string; establecimiento?: string;
+  canal_preferido: Canal; especialidad?: string; establecimiento?: string; consentimiento_en?: string | null;
 }
 export interface Cita {
   id: string; paciente_id: string; medico_id: string; especialidad: string; fecha_hora: string;
@@ -36,7 +36,7 @@ export interface Solicitud {
   estado: 'activa' | 'notificada' | 'cancelada'; creada_en: string; notificada_en?: string | null;
 }
 
-export interface Sala { sala: string; token: string; acs_user_id: string; expira: string; modo: string; modalidad: 'video' | 'audio' }
+export interface Sala { sala: string; grupo: string; token: string; acs_user_id: string; expira: string; modo: string; modalidad: 'video' | 'audio' }
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -68,6 +68,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   devUsuarios: () => request<Usuario[]>('GET', '/api/dev/usuarios'),
   me: () => request<Usuario>('GET', '/api/me'),
+  aceptarConsentimiento: () => request<Usuario>('POST', '/api/me/consentimiento', { acepta: true }),
   actualizarPerfil: (b: { telefono?: string; email?: string; canal_preferido: Canal }) => request<Usuario>('PUT', '/api/me', b),
   medicos: (especialidad?: string) =>
     request<Medico[]>('GET', `/api/medicos${especialidad ? `?especialidad=${encodeURIComponent(especialidad)}` : ''}`),

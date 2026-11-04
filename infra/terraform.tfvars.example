@@ -1,10 +1,12 @@
 entorno                = "dev"
-location               = "chilecentral"
+location               = "mexicocentral"
+apim_publisher_email   = "coordinacion@ong.example"
 entra_tenant_subdomain = "saludcerca"
 entra_tenant_id        = "00000000-0000-0000-0000-000000000000"
 entra_api_client_id    = "00000000-0000-0000-0000-000000000000"
 acs_sms_from           = ""          # remitente habilitado con Messaging Connect
-presupuesto_mensual_usd = 500
+presupuesto_mensual_usd = 50
 correos_alerta         = ["coordinacion@ong.example"]
 campana                = "base"
-habilitar_front_door   = false
+habilitar_front_door   = true
+paises_permitidos      = ["PE"]

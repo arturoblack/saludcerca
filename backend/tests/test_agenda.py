@@ -1,9 +1,10 @@
 from datetime import datetime, time, timedelta
 
+from test_api import turno
+
 from app.agenda import turnos_libres
 from app.messaging import LIMA
 from app.models import Agenda, Bloque, Cita
-from test_api import turno
 
 
 def _proximo(dia_semana: int) -> datetime:

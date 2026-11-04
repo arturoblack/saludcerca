@@ -14,7 +14,6 @@ from app.config import Settings  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.repository import MemoryRepository  # noqa: E402
 
-
 CLAVE_FHIR = "clave-de-prueba-hospital"
 CLAVE_FHIR_SHA256 = __import__("hashlib").sha256(CLAVE_FHIR.encode()).hexdigest()
 

@@ -3,6 +3,7 @@ import time
 
 import jwt
 import pytest
+from conftest import Client
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app import auth
@@ -11,7 +12,6 @@ from app.main import create_app
 from app.messaging import SmtpNotifier
 from app.models import Canal
 from app.repository import MemoryRepository
-from conftest import Client
 
 ISSUER = "http://localhost:8090/default"
 CLAVE = rsa.generate_private_key(public_exponent=65537, key_size=2048)
