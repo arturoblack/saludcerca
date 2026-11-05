@@ -28,6 +28,8 @@ def entrar(page, nombre):
 
 def salir(page):
     page.get_by_role("button", name="Salir").click()
+    # El cierre de sesión es asíncrono: si se navega antes, la sesión anterior sigue activa.
+    expect(page.get_by_role("heading", name="Ingresar")).to_be_visible()
 
 
 with sync_playwright() as p:
