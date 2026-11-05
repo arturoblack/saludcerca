@@ -57,8 +57,10 @@ locals {
     docs_sas     = { scope = azurerm_storage_account.docs.id, role = "Storage Blob Delegator" }
     sb_sender    = { scope = azurerm_servicebus_namespace.sb.id, role = "Azure Service Bus Data Sender" }
     sb_receiver  = { scope = azurerm_servicebus_namespace.sb.id, role = "Azure Service Bus Data Receiver" }
-    kv_secrets   = { scope = azurerm_key_vault.kv.id, role = "Key Vault Secrets User" }
-    monitoring   = { scope = azurerm_application_insights.ai.id, role = "Monitoring Metrics Publisher" }
+    # El escalador de Flex lee el conteo de la cola (GetQueueRuntimeProperties): sin Data Owner no levanta notificador.
+    sb_escala  = { scope = azurerm_servicebus_namespace.sb.id, role = "Azure Service Bus Data Owner" }
+    kv_secrets = { scope = azurerm_key_vault.kv.id, role = "Key Vault Secrets User" }
+    monitoring = { scope = azurerm_application_insights.ai.id, role = "Monitoring Metrics Publisher" }
   }
 }
 

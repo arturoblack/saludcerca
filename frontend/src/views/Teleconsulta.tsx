@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { api, Cita, Sala } from '../api';
+import { api, Cita, hora, Sala } from '../api';
 import { LlamadaAcs, unirseALlamada } from '../llamadaAcs';
 import { useConexion } from '../conexion';
 
@@ -116,7 +116,7 @@ export function Teleconsulta({ cita, rol, onSalir, panel }: {
 
       {sala && (
         <p className="small muted center">
-          Sala {sala.sala} · token de Communication Services {sala.modo === 'simulado' ? '(simulado en la demo)' : 'emitido'} · vence {new Date(sala.expira).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+          Sala {sala.sala} · token de Communication Services {sala.modo === 'simulado' ? '(simulado en la demo)' : 'emitido'} · vence {hora(sala.expira)}
         </p>
       )}
     </section>

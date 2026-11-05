@@ -5,7 +5,7 @@ services:
     image: floci/floci-az:latest
     ports:
       - "4577:4577"   # API HTTP (Blob, Cosmos DB, gestión)
-      - "5673:5673"   # Service Bus (AMQP)
+      # 5673 (Service Bus AMQP) lo publica el contenedor de Artemis que crea floci-az; mapearlo aquí choca
     environment:
       FLOCI_AZ_HOSTNAME: floci-az
       FLOCI_AZ_BASE_URL: http://floci-az:4577
@@ -15,6 +15,16 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock       # floci-az crea el contenedor de Artemis
     restart: unless-stopped
+
+  # Crea la cola de avisos (en Azure la crea Terraform). Se ejecuta una vez y termina.
+  floci-init:
+    image: curlimages/curl:8.11.1
+    depends_on:
+      floci-az: { condition: service_healthy }
+    command: ["-fsS", "-o", "/dev/null", "-X", "PUT", "-H", "Content-Type: application/atom+xml",
+              "--data", "<entry xmlns=\"http://www.w3.org/2005/Atom\"><content type=\"application/xml\"><QueueDescription xmlns=\"http://schemas.microsoft.com/netservices/2010/10/servicebus/connect\"><MaxDeliveryCount>10</MaxDeliveryCount></QueueDescription></content></entry>",
+              "http://floci-az:4577/devstoreaccount1-servicebus/notificaciones"]
+    restart: "no"
 
   api:
     depends_on: [floci-az]
@@ -27,7 +37,7 @@ services:
       COSMOS_AUTO_CREATE: "true"
       BLOB_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://floci-az:4577/devstoreaccount1;
       MESSAGING_BACKEND: servicebus
-      SERVICEBUS_CONNECTION_STRING: Endpoint=sb://floci-az:5673;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=devkey;UseDevelopmentEmulator=true
+      SERVICEBUS_CONNECTION_STRING: Endpoint=sb://floci-az-servicebus-default:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=devkey;UseDevelopmentEmulator=true
       SERVICEBUS_QUEUE: notificaciones
       LOCAL_SB_WORKER: "true"       # dev_server.py hace de fn-notificador leyendo la cola
       NOTIFIER_BACKEND: console

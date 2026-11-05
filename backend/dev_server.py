@@ -8,6 +8,7 @@ Si existe ../frontend/dist (npm run build), también sirve la PWA.
 """
 import logging
 import os
+import time
 from pathlib import Path
 
 import uvicorn
@@ -41,16 +42,22 @@ def worker_service_bus() -> None:  # pragma: no cover - requiere Service Bus o e
 
     svc = app.state.services
     s = svc.settings
-    client = ServiceBusClient.from_connection_string(s.servicebus_connection_string)
-    with client.get_queue_receiver(s.servicebus_queue, max_wait_time=5) as receiver:
-        while True:
-            for msg in receiver.receive_messages(max_message_count=10, max_wait_time=5):
-                try:
-                    handle_event(json.loads(str(msg)), svc.repo, build_notifier(s))
-                    receiver.complete_message(msg)
-                except Exception:
-                    logging.exception("fallo al procesar el mensaje; se reintentará")
-                    receiver.abandon_message(msg)
+    while True:  # el broker del emulador puede tardar en arrancar: reconecta en vez de morir
+        try:
+            client = ServiceBusClient.from_connection_string(s.servicebus_connection_string)
+            with client.get_queue_receiver(s.servicebus_queue, max_wait_time=5) as receiver:
+                logging.info("lector de Service Bus conectado a la cola %s", s.servicebus_queue)
+                while True:
+                    for msg in receiver.receive_messages(max_message_count=10, max_wait_time=5):
+                        try:
+                            handle_event(json.loads(str(msg)), svc.repo, build_notifier(s))
+                            receiver.complete_message(msg)
+                        except Exception:
+                            logging.exception("fallo al procesar el mensaje; se reintentará")
+                            receiver.abandon_message(msg)
+        except Exception as e:
+            logging.warning("Service Bus no disponible (%s); reintento en 5 s", type(e).__name__)
+            time.sleep(5)
 
 
 if __name__ == "__main__":
