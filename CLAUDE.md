@@ -7,7 +7,7 @@ Carlos Eduardo Puma Mendoza. Entrega: 8 de noviembre de 2026 (documento 8–10 p
 
 ## Estructura
 - `backend/` Python 3.11, Starlette + Pydantic, empaquetado como Azure Functions (Flex Consumption) vía `function_app.py`;
-  `dev_server.py` para local. Tests: `cd backend && python -m pytest -q` (61 tests).
+  `dev_server.py` para local. Tests: `cd backend && python -m pytest -q` (64 tests).
 - `frontend/` React + TypeScript (Vite o `scripts/build-esbuild.mjs`). Modos de login: dev | oidc (mock) | entra (MSAL).
 - `infra/` Terraform azurerm ~>4.50 (Cosmos serverless, Functions Flex, Service Bus, ACS, Blob con lifecycle, Key Vault, SWA, budget).
 - `.github/workflows/` CI (pytest, ruff, build, terraform validate, CodeQL, e2e) y deploy con OIDC + aprobación manual.

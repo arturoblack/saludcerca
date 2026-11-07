@@ -147,8 +147,8 @@ def architecture():
 
     # DevOps (abajo)
     p.append(f'<text x="300" y="965" font-family="{FONT}" font-size="12" font-weight="bold" letter-spacing="1.5" fill="#6B7280">AUTOMATIZACIÓN (DEVOPS)</text>')
-    p.append(box(300, 985, 250, 95, "ops", "Repositorio GitHub", ["Código de app + infraestructura", "Revisión por pull request"]))
-    p.append(box(640, 985, 300, 95, "ops", "GitHub Actions (CI/CD)", ["Pruebas, lint, escaneo SAST", "Login a Azure con OIDC (sin secretos)"]))
+    p.append(box(300, 985, 250, 95, "ops", "Azure Repos (Git)", ["Código de app + infraestructura", "Revisión por pull request"]))
+    p.append(box(640, 985, 300, 95, "ops", "Azure Pipelines (CI/CD)", ["Pruebas, lint, escaneo SAST", "Conexión de servicio OIDC (sin secretos)"]))
     p.append(box(1030, 985, 270, 95, "ops", "Terraform (IaC)", ["plan → aprobación → apply", "Entornos dev / prod"]))
     p.append(arrow([(550, 1032), (640, 1032)]))
     p.append(arrow([(940, 1032), (1030, 1032)]))
